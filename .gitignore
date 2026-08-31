@@ -1,0 +1,6 @@
+# 编译产物
+/tailcat-forward
+
+# 本地构建缓存（沙箱环境重定向用）
+/.gocache/
+/.gotmp/
