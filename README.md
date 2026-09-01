@@ -1,3 +1,5 @@
+[English](./README_EN.md) | 简体中文
+
 # tailcat-forward
 
 把 [tailcat](https://github.com/tailscale/tailcat) 服务端暴露的 TCP 端口，映射成本机普通的 TCP 监听端口。
