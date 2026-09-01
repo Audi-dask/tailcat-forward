@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tailcat PAM - 临时特权访问系统</title>
+<link rel="stylesheet" href="https://unpkg.com/@arco-design/web-css@2.55.0/css/arco.css">
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+
+<div class="app-layout">
+    <!-- 侧边栏 -->
+    <aside class="app-sidebar">
+        <div class="sidebar-logo">
+            <span class="cat-emoji">🐈</span>
+            <span>Tailcat PAM</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" onclick="switchView('dashboard', this)">
+                <span>📊 仪表盘</span>
+            </div>
+            <div class="nav-item" onclick="switchView('apply', this)">
+                <span>📝 申请访问</span>
+            </div>
+            <div class="nav-item" onclick="switchView('approvals', this)">
+                <span>✅ 审批管理</span>
+                <span class="nav-badge">2</span>
+            </div>
+            <div class="nav-item" onclick="switchView('sessions', this)">
+                <span>🔗 活跃会话</span>
+                <span class="nav-badge">3</span>
+            </div>
+            <div class="nav-item" onclick="switchView('assets', this)">
+                <span>🖥️ 资产管理</span>
+            </div>
+            <div class="nav-item" onclick="switchView('gateways', this)">
+                <span>🌐 网关管理</span>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            v0.1.0 · Powered by tailcat
+        </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <div class="app-main">
+        <!-- 顶栏 -->
+        <header class="app-header">
+            <div class="page-title" id="pageTitle">仪表盘</div>
+            <div class="user-info" onclick="showLoginModal()">
+                <div class="user-avatar">张</div>
+                <span style="font-size:13px;color:#1d2129;">张三</span>
+            </div>
+        </header>
+
+        <!-- 内容容器 -->
+        <div class="app-content">
+
+            <!-- ========== 仪表盘 ========== -->
+            <div class="view active" id="view-dashboard">
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🔗</div>
+                        <div class="stat-value">3</div>
+                        <div class="stat-label">活跃会话</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏳</div>
+                        <div class="stat-value">2</div>
+                        <div class="stat-label">待审批</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🖥️</div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-label">注册资产</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🌐</div>
+                        <div class="stat-value">2</div>
+                        <div class="stat-label">区域网关</div>
+                    </div>
+                </div>
+
+                <div class="pam-card">
+                    <div class="pam-card-header">
+                        <div class="pam-card-title">最近会话</div>
+                        <button class="btn btn-secondary btn-sm" onclick="switchView('sessions', document.querySelectorAll('.nav-item')[3])">查看全部</button>
+                    </div>
+                    <table class="pam-table">
+                        <thead>
+                            <tr><th>用户</th><th>资产</th><th>端口</th><th>状态</th><th>剩余时间</th><th>创建时间</th></tr>
+                        </thead>
+                        <tbody id="dash-sessions"></tbody>
+                    </table>
+                </div>
+
+                <div class="pam-card">
+                    <div class="pam-card-header">
+                        <div class="pam-card-title">最近申请</div>
+                        <button class="btn btn-secondary btn-sm" onclick="switchView('approvals', document.querySelectorAll('.nav-item')[2])">查看全部</button>
+                    </div>
+                    <table class="pam-table">
+                        <thead>
+                            <tr><th>申请人</th><th>资产</th><th>端口</th><th>状态</th><th>申请时间</th></tr>
+                        </thead>
+                        <tbody id="dash-approvals"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========== 申请访问 ========== -->
+            <div class="view" id="view-apply">
+                <div class="pam-card" style="max-width:560px;">
+                    <div class="pam-card-header">
+                        <div class="pam-card-title">提交访问申请</div>
+                    </div>
+                    <div class="pam-card-body">
+                        <div class="form-group">
+                            <label class="form-label">选择区域</label>
+                            <select class="form-select" onchange="loadAssets(this.value)">
+                                <option value="">请选择区域</option>
+                                <option value="mx">墨西哥机房</option>
+                                <option value="sh">上海机房</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">选择资产</label>
+                            <select class="form-select" id="assetSelect" onchange="loadPorts(this.value)">
+                                <option value="">请先选择区域</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">访问端口</label>
+                            <select class="form-select" id="portSelect">
+                                <option value="">请先选择资产</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">有效期（分钟）</label>
+                            <select class="form-select">
+                                <option value="30">30 分钟</option>
+                                <option value="60" selected>1 小时</option>
+                                <option value="120">2 小时</option>
+                                <option value="240">4 小时</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">申请理由</label>
+                            <input type="text" class="form-input" placeholder="简要说明访问目的">
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px;">
+                            <button class="btn btn-secondary">取消</button>
+                            <button class="btn btn-primary" onclick="submitApplication()">提交申请</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== 审批管理 ========== -->
+            <div class="view" id="view-approvals">
+                <div class="pam-card">
+                    <div class="pam-card-header">
+                        <div class="pam-card-title">待审批申请</div>
+                    </div>
+                    <table class="pam-table">
+                        <thead>
+                            <tr><th>申请人</th><th>资产</th><th>端口</th><th>有效期</th><th>申请理由</th><th>申请时间</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="approval-list"></tbody>
+                    </table>
+                </div>
+                <div class="pam-card">
+                    <div class="pam-card-header">
+                        <div class="pam-card-title">已审批记录</div>
+                    </div>
+                    <table class="pam-table">
+                        <thead>
+                            <tr><th>申请人</th><th>资产</th><th>端口</th><th>结果</th><th>审批人</th><th>审批时间</th></tr>
+                        </thead>
+                        <tbody id="approved-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========== 活跃会话 ========== -->
+            <div class="view" id="view-sessions">
+                <div id="session-list"></div>
+            </div>
+
+            <!-- ========== 资产管理 ========== -->
+            <div class="view" id="view-assets">
+                <div class="pam-card">
+                    <div class="pam-card-header">
+                        <div class="pam-card-title">资产列表</div>
+                        <button class="btn btn-primary btn-sm" onclick="showAssetModal()">+ 录入资产</button>
+                    </div>
+                    <table class="pam-table">
+                        <thead>
+                            <tr><th>资产名称</th><th>类型</th><th>IP 地址</th><th>端口</th><th>所属区域</th><th>状态</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="asset-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========== 网关管理 ========== -->
+            <div class="view" id="view-gateways">
+                <div class="pam-card">
+                    <div class="pam-card-header">
+                        <div class="pam-card-title">网关列表</div>
+                        <button class="btn btn-primary btn-sm" onclick="showGatewayModal()">+ 录入网关</button>
+                    </div>
+                    <table class="pam-table">
+                        <thead>
+                            <tr><th>网关名称</th><th>区域</th><th>Agent 地址</th><th>DERP Region</th><th>状态</th><th>活跃会话</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="gateway-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- 资产录入弹窗 -->
+<div class="modal-overlay" id="assetModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span>录入资产</span>
+            <span class="modal-close" onclick="closeModal('assetModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">资产名称</label>
+                <input type="text" class="form-input" placeholder="如：MySQL 生产主库">
+            </div>
+            <div class="form-group">
+                <label class="form-label">资产类型</label>
+                <select class="form-select">
+                    <option value="">请选择</option>
+                    <option>MySQL</option>
+                    <option>Redis</option>
+                    <option>PostgreSQL</option>
+                    <option>Jenkins</option>
+                    <option>Grafana</option>
+                    <option>其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">IP 地址</label>
+                <input type="text" class="form-input" placeholder="如：192.168.1.10">
+            </div>
+            <div class="form-group">
+                <label class="form-label">端口</label>
+                <input type="number" class="form-input" placeholder="如：3306">
+            </div>
+            <div class="form-group">
+                <label class="form-label">所属区域</label>
+                <select class="form-select">
+                    <option value="">请选择</option>
+                    <option>墨西哥机房</option>
+                    <option>上海机房</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('assetModal')">取消</button>
+            <button class="btn btn-primary" onclick="closeModal('assetModal')">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 网关录入弹窗 -->
+<div class="modal-overlay" id="gatewayModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span>录入网关</span>
+            <span class="modal-close" onclick="closeModal('gatewayModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">网关名称</label>
+                <input type="text" class="form-input" placeholder="如：墨西哥网关">
+            </div>
+            <div class="form-group">
+                <label class="form-label">区域</label>
+                <select class="form-select">
+                    <option value="">请选择</option>
+                    <option>墨西哥机房</option>
+                    <option>上海机房</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Agent 地址</label>
+                <input type="text" class="form-input" placeholder="如：10.0.0.1:8443">
+            </div>
+            <div class="form-group">
+                <label class="form-label">DERP Region ID</label>
+                <input type="number" class="form-input" placeholder="如：915">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('gatewayModal')">取消</button>
+            <button class="btn btn-primary" onclick="closeModal('gatewayModal')">保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ========== 视图切换 ==========
+const viewTitles = {
+    dashboard: '仪表盘',
+    apply: '申请访问',
+    approvals: '审批管理',
+    sessions: '活跃会话',
+    assets: '资产管理',
+    gateways: '网关管理'
+};
+
+function switchView(name, navEl) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (navEl) navEl.classList.add('active');
+    document.getElementById('pageTitle').textContent = viewTitles[name] || name;
+}
+
+// ========== Modal ==========
+function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+}
+function showAssetModal() {
+    document.getElementById('assetModal').classList.add('show');
+}
+function showGatewayModal() {
+    document.getElementById('gatewayModal').classList.add('show');
+}
+function showLoginModal() {
+    alert('飞书 OAuth 登录（mock）\n点击后跳转飞书授权页面');
+}
+
+// ========== Mock 数据 ==========
+const mockAssets = {
+    mx: [
+        { id: 'mysql-prod-01', name: 'MySQL 生产主库', ports: [3306] },
+        { id: 'redis-prod-01', name: 'Redis 缓存集群', ports: [6379] },
+        { id: 'jenkins-prod', name: 'Jenkins CI/CD', ports: [8080] },
+        { id: 'grafana-prod', name: 'Grafana 监控', ports: [3000] },
+    ],
+    sh: [
+        { id: 'mysql-sh-01', name: 'MySQL 上海从库', ports: [3306] },
+        { id: 'redis-sh-01', name: 'Redis 上海集群', ports: [6379] },
+        { id: 'grafana-sh', name: 'Grafana 上海', ports: [3000] },
+    ]
+};
+
+const mockSessions = [
+    {
+        id: 'sess_001', user: '张三', asset: 'MySQL 生产主库', assetType: 'MySQL',
+        port: 3306, localPort: 13306, status: 'active', ttl: '47分钟',
+        createdAt: '2026-09-01 10:30', expiresAt: '2026-09-01 11:30',
+        token: 'tco2FwWCDc9kxLTWF-g7biwCCWaGGs6MQmWK_lBxgeE9UINKnDWWFrWCBlPYwQWKD12JPNw3KwnFNCcmw6_iJfpkOc1w_f53ooCGFpGQEt',
+        clientKey: 'nodekey:abc123def456ghi789jkl012mno345pqr678stu901vwx234yz'
+    },
+    {
+        id: 'sess_002', user: '李四', asset: 'Jenkins CI/CD', assetType: 'Jenkins',
+        port: 8080, localPort: 18080, status: 'active', ttl: '23分钟',
+        createdAt: '2026-09-01 10:54', expiresAt: '2026-09-01 11:54',
+        token: 'tco2FwWCCz51_bA6Jg1_rDRC1qACXkYPdqQy-2N6Xn4kDhndBmY2FrWCCd_MJVfAaAWxawyUjh7hVGE1dBkbMEZzvGeHjrwWyIM2FpGQEt',
+        clientKey: 'nodekey:def456ghi789jkl012mno345pqr678stu901vwx234yz123abc'
+    },
+    {
+        id: 'sess_003', user: '王五', asset: 'Redis 缓存集群', assetType: 'Redis',
+        port: 6379, localPort: 16379, status: 'active', ttl: '1小时12分钟',
+        createdAt: '2026-09-01 09:18', expiresAt: '2026-09-01 11:18',
+        token: 'tco2FwWCBeunLBSTvNcEvqeZuqGlpKdLU8yApL1vIKaVhTG5YNSGFrWCBqnRqYmEcA1AU1iNFkDob8M8UGPEu5NzVqkFL8syrDUGFpGQEt',
+        clientKey: 'nodekey:ghi789jkl012mno345pqr678stu901vwx234yz123abc456def'
+    }
+];
+
+const mockApprovals = [
+    { id: 'app_001', user: '赵六', asset: 'MySQL 生产主库', port: 3306, ttl: '1小时', reason: '排查慢查询', time: '2026-09-01 10:15' },
+    { id: 'app_002', user: '孙七', asset: 'Jenkins CI/CD', port: 8080, ttl: '2小时', reason: '查看构建日志', time: '2026-09-01 10:22' },
+];
+
+const mockApproved = [
+    { id: 'app_003', user: '张三', asset: 'MySQL 生产主库', port: 3306, result: 'approve', approver: '技术负责人', time: '2026-09-01 10:25' },
+    { id: 'app_004', user: '李四', asset: 'Jenkins CI/CD', port: 8080, result: 'approve', approver: '技术负责人', time: '2026-09-01 10:30' },
+    { id: 'app_005', user: '钱八', asset: 'Grafana 监控', port: 3000, result: 'reject', approver: '技术负责人', time: '2026-09-01 09:45' },
+];
+
+const mockAssetList = [
+    { name: 'MySQL 生产主库', type: 'MySQL', ip: '192.168.1.10', port: 3306, region: '墨西哥机房', status: 'online' },
+    { name: 'Redis 缓存集群', type: 'Redis', ip: '192.168.1.20', port: 6379, region: '墨西哥机房', status: 'online' },
+    { name: 'Jenkins CI/CD', type: 'Jenkins', ip: '192.168.1.30', port: 8080, region: '墨西哥机房', status: 'online' },
+    { name: 'Grafana 监控', type: 'Grafana', ip: '192.168.1.40', port: 3000, region: '墨西哥机房', status: 'online' },
+    { name: 'MySQL 上海从库', type: 'MySQL', ip: '10.0.0.10', port: 3306, region: '上海机房', status: 'online' },
+    { name: 'Redis 上海集群', type: 'Redis', ip: '10.0.0.20', port: 6379, region: '上海机房', status: 'online' },
+    { name: 'Grafana 上海', type: 'Grafana', ip: '10.0.0.30', port: 3000, region: '上海机房', status: 'maintenance' },
+    { name: 'PostgreSQL 日志库', type: 'PostgreSQL', ip: '192.168.1.50', port: 5432, region: '墨西哥机房', status: 'offline' },
+];
+
+const mockGateways = [
+    { name: '墨西哥网关', region: '墨西哥机房', agent: '192.168.1.1:8443', derpRegion: '915', status: 'healthy', sessions: 3 },
+    { name: '上海网关', region: '上海机房', agent: '10.0.0.1:8443', derpRegion: '916', status: 'healthy', sessions: 0 },
+];
+
+// ========== 渲染函数 ==========
+function renderDashboard() {
+    document.getElementById('dash-sessions').innerHTML = mockSessions.map(s => `
+        <tr>
+            <td>${s.user}</td>
+            <td>${s.asset}</td>
+            <td>${s.port}</td>
+            <td><span class="tag tag-green">活跃</span></td>
+            <td>${s.ttl}</td>
+            <td style="color:#86909c;">${s.createdAt}</td>
+        </tr>
+    `).join('');
+
+    document.getElementById('dash-approvals').innerHTML = mockApprovals.map(a => `
+        <tr>
+            <td>${a.user}</td>
+            <td>${a.asset}</td>
+            <td>${a.port}</td>
+            <td><span class="tag tag-orange">待审批</span></td>
+            <td style="color:#86909c;">${a.time}</td>
+        </tr>
+    `).join('');
+}
+
+function renderApprovals() {
+    document.getElementById('approval-list').innerHTML = mockApprovals.map(a => `
+        <tr>
+            <td>${a.user}</td>
+            <td>${a.asset}</td>
+            <td>${a.port}</td>
+            <td>${a.ttl}</td>
+            <td style="color:#86909c;">${a.reason}</td>
+            <td style="color:#86909c;">${a.time}</td>
+            <td>
+                <button class="btn btn-primary btn-sm" onclick="approve('${a.id}')">通过</button>
+                <button class="btn btn-danger btn-sm" onclick="reject('${a.id}')">拒绝</button>
+            </td>
+        </tr>
+    `).join('');
+
+    document.getElementById('approved-list').innerHTML = mockApproved.map(a => `
+        <tr>
+            <td>${a.user}</td>
+            <td>${a.asset}</td>
+            <td>${a.port}</td>
+            <td><span class="tag ${a.result === 'approve' ? 'tag-green' : 'tag-red'}">${a.result === 'approve' ? '已通过' : '已拒绝'}</span></td>
+            <td>${a.approver}</td>
+            <td style="color:#86909c;">${a.time}</td>
+        </tr>
+    `).join('');
+}
+
+function renderSessions() {
+    document.getElementById('session-list').innerHTML = mockSessions.map(s => `
+        <div class="pam-card">
+            <div class="pam-card-header">
+                <div class="pam-card-title">
+                    ${s.asset} <span class="tag tag-blue">${s.assetType}</span>
+                    <span class="tag tag-green">${s.status === 'active' ? '活跃' : ''}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:13px;color:#86909c;">⏳ 剩余 ${s.ttl}</span>
+                    <button class="btn btn-danger btn-sm" onclick="revokeSession('${s.id}')">吊销</button>
+                </div>
+            </div>
+            <div class="pam-card-body">
+                <table class="pam-table" style="margin-bottom:16px;">
+                    <tr>
+                        <td style="width:80px;color:#86909c;">用户</td><td>${s.user}</td>
+                        <td style="width:80px;color:#86909c;">创建时间</td><td>${s.createdAt}</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#86909c;">远端端口</td><td>${s.port}</td>
+                        <td style="color:#86909c;">过期时间</td><td style="color:#f53f3f;">${s.expiresAt}</td>
+                    </tr>
+                </table>
+                <div class="connect-box">
+                    <button class="copy-btn" onclick="copyCmd('${s.id}')">复制命令</button>
+                    <div><span class="label">连接命令：</span></div>
+                    <div style="margin-top:4px;">
+                        <span class="value">tailcat-forward</span>
+                        <span class="value">--client-key='</span><span class="token">${s.clientKey}</span><span class="value">'</span>
+                        <span class="value">'</span><span class="token">${s.token}</span><span class="value">'</span>
+                        <span class="value">${s.localPort}:${s.port}</span>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <span class="label">本地访问：</span>
+                        <span style="color:#7bc678;">127.0.0.1:${s.localPort}</span>
+                    </div>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:#86909c;">
+                    下载 tailcat-forward：
+                    <a href="https://github.com/Audi-dask/tailcat-forward/releases" target="_blank" style="color:#165dff;text-decoration:none;">GitHub Releases ↗</a>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderAssets() {
+    document.getElementById('asset-list').innerHTML = mockAssetList.map(a => `
+        <tr>
+            <td>${a.name}</td>
+            <td><span class="tag tag-blue">${a.type}</span></td>
+            <td style="font-family:monospace;">${a.ip}</td>
+            <td>${a.port}</td>
+            <td>${a.region}</td>
+            <td><span class="tag ${a.status === 'online' ? 'tag-green' : a.status === 'maintenance' ? 'tag-orange' : 'tag-gray'}">${a.status === 'online' ? '在线' : a.status === 'maintenance' ? '维护中' : '离线'}</span></td>
+            <td>
+                <button class="btn btn-secondary btn-sm">编辑</button>
+                <button class="btn btn-danger btn-sm">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderGateways() {
+    document.getElementById('gateway-list').innerHTML = mockGateways.map(g => `
+        <tr>
+            <td>${g.name}</td>
+            <td>${g.region}</td>
+            <td style="font-family:monospace;">${g.agent}</td>
+            <td>${g.derpRegion}</td>
+            <td><span class="tag tag-green">健康</span></td>
+            <td>${g.sessions}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm">编辑</button>
+                <button class="btn btn-danger btn-sm">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ========== 申请表单联动 ==========
+function loadAssets(region) {
+    const select = document.getElementById('assetSelect');
+    if (!region) { select.innerHTML = '<option value="">请先选择区域</option>'; return; }
+    const assets = mockAssets[region] || [];
+    select.innerHTML = '<option value="">请选择资产</option>' +
+        assets.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+}
+
+function loadPorts(assetId) {
+    const select = document.getElementById('portSelect');
+    if (!assetId) { select.innerHTML = '<option value="">请先选择资产</option>'; return; }
+    let ports = [];
+    for (const region of Object.values(mockAssets)) {
+        const asset = region.find(a => a.id === assetId);
+        if (asset) { ports = asset.ports; break; }
+    }
+    select.innerHTML = ports.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+// ========== 操作函数 ==========
+function submitApplication() {
+    alert('✅ 申请已提交，等待审批\n审批通过后将自动创建会话。');
+}
+
+function approve(id) {
+    if (confirm('确认通过此申请？\n通过后将自动创建加密隧道会话。')) {
+        alert('✅ 已通过\n会话已创建，连接信息已下发。');
+    }
+}
+
+function reject(id) {
+    if (confirm('确认拒绝此申请？')) {
+        alert('❌ 已拒绝\n已通知申请人。');
+    }
+}
+
+function revokeSession(id) {
+    if (confirm('确认吊销此会话？\n吊销后连接立即断开，用户无法重连。')) {
+        alert('🔗 会话已吊销\nServer.Close() 已执行，连接已断开。');
+    }
+}
+
+function copyCmd(id) {
+    const s = mockSessions.find(x => x.id === id);
+    if (!s) return;
+    const cmd = `tailcat-forward --client-key='${s.clientKey}' '${s.token}' ${s.localPort}:${s.port}`;
+    navigator.clipboard.writeText(cmd).then(() => {
+        alert('✅ 已复制到剪贴板');
+    }).catch(() => {
+        alert('复制失败，请手动选择复制');
+    });
+}
+
+// ========== 初始化 ==========
+renderDashboard();
+renderApprovals();
+renderSessions();
+renderAssets();
+renderGateways();
+</script>
+
+</body>
+</html>
