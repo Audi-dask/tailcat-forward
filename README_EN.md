@@ -61,7 +61,6 @@ tailcat-forward [--bind=<addr>] <addrblob> <[local:]remote> [<[local:]remote> ..
 | `tailcat-forward --bind=0.0.0.0 <token> 18080:8080` | other devices on your LAN can reach it too |
 | `tailcat-forward <token> 3306:3306 6379:6379` | map MySQL + Redis in one go |
 
-The `addrblob` may also be a DNS name carrying a `tailcat=` TXT record.
 
 ## Examples
 

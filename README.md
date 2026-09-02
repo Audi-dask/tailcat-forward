@@ -61,7 +61,6 @@ tailcat-forward [--bind=<addr>] <addrblob> <[local:]remote> [<[local:]remote> ..
 | `tailcat-forward --bind=0.0.0.0 <token> 18080:8080` | 局域网内其他设备也能访问 |
 | `tailcat-forward <token> 3306:3306 6379:6379` | 一次映射 MySQL + Redis |
 
-`addrblob` 也可以是一个带 `tailcat=` TXT 记录的 DNS 域名。
 
 ## 示例
 
