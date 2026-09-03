@@ -2,13 +2,22 @@ English | [简体中文](./README.md)
 
 # tailcat-forward
 
-Map TCP ports exposed by a [tailcat](https://github.com/tailscale/tailcat) server to ordinary local TCP listening ports.
+> **Preparing for archival: this is a feature-validation repository based on the official `tailcat`.**
 
-Let tools that only understand `host:port` — browsers, database clients (MySQL/Redis/PostgreSQL), IDEs, scripts, etc. — reach the remote tailcat server without any SOCKS or stdio support.
+When client-side TCP forwarding was not yet available in the official [tailscale/tailcat](https://github.com/tailscale/tailcat), I implemented and validated the capability on top of its codebase. It lets browsers, database clients, IDEs, scripts, and other tools that only understand ordinary `host:port` connections reach remote Tailcat services.
 
-Built on the `github.com/tailscale/tailcat` library; tailcat itself is not modified.
+The implementation was submitted upstream:
 
-## Installation
+- ✅ [PR #62](https://github.com/tailscale/tailcat/pull/62) — added `tailcat forward`; merged
+- 🚧 [PR #75](https://github.com/tailscale/tailcat/pull/75) — forwarding to Exit Node targets; in progress
+
+This repository is kept as a record of the validation and implementation process. For the current upstream implementation, see:
+
+👉 [tailscale/tailcat](https://github.com/tailscale/tailcat)
+
+> This repository is no longer maintained as an independent project. The installation and usage sections below are kept to reproduce the original validation setup.
+
+## Historical validation: Installation
 
 ### Download a Release binary
 

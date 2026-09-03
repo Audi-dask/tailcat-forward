@@ -2,13 +2,22 @@
 
 # tailcat-forward
 
-把 [tailcat](https://github.com/tailscale/tailcat) 服务端暴露的 TCP 端口，映射成本机普通的 TCP 监听端口。
+> **归档准备中：这是一个基于官方 `tailcat` 的功能验证仓库。**
 
-让只认 `host:port` 的工具——浏览器、数据库客户端（MySQL/Redis/PostgreSQL）、IDE、脚本等——无需 SOCKS 或 stdio 支持，就能访问远端 tailcat 服务端。
+在官方 [tailscale/tailcat](https://github.com/tailscale/tailcat) 尚未支持客户端 TCP 转发时，我基于其代码实现并验证了 TCP 端口转发能力，使只支持普通 `host:port` 连接的浏览器、数据库客户端、IDE 和脚本能够访问远程 Tailcat 服务。
 
-底层基于 `github.com/tailscale/tailcat` 库，不改动 tailcat 本身。
+相关实现已经提交到上游：
 
-## 安装
+- ✅ [PR #62](https://github.com/tailscale/tailcat/pull/62) — 增加 `tailcat forward`，已合并
+- 🚧 [PR #75](https://github.com/tailscale/tailcat/pull/75) — 支持转发到 Exit Node 目标，进行中
+
+本仓库保留作为功能验证和实现过程记录。后续请优先关注官方上游项目：
+
+👉 [tailscale/tailcat](https://github.com/tailscale/tailcat)
+
+> 本仓库不再作为独立项目持续维护。下面的安装和使用内容保留用于复现当时的验证过程。
+
+## 历史验证：安装
 
 ### 下载 Release 二进制
 
